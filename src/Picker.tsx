@@ -26,6 +26,7 @@ export default function Picker({ tags }: PickerProps) {
   const tagsRef = useRef<HTMLDivElement>(null);
   const balloonRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const preMarqueeSelected = useRef<Set<string>>(new Set());
+  const didDrag = useRef(false);
 
   const filtered = tags
     .filter((t) => t.toLowerCase().includes(filter.toLowerCase()))
@@ -105,6 +106,10 @@ export default function Picker({ tags }: PickerProps) {
   }
 
   function onTagClick(tag: string, e: MouseEvent) {
+    if (didDrag.current) {
+      didDrag.current = false;
+      return;
+    }
     if (e.ctrlKey || e.metaKey) {
       setSelected((prev) => {
         const next = new Set(prev);
@@ -118,6 +123,11 @@ export default function Picker({ tags }: PickerProps) {
   }
 
   function onDragStart(e: DragEvent, tag: string) {
+    if ((e.ctrlKey || e.metaKey) && !selected.has(tag)) {
+      e.preventDefault();
+      return;
+    }
+    didDrag.current = true;
     const tagsToSend = selected.has(tag) && selected.size > 1
       ? [...selected].sort((a, b) => a.localeCompare(b))
       : [tag];
@@ -143,6 +153,9 @@ export default function Picker({ tags }: PickerProps) {
   function onDragEnd(e: DragEvent) {
     (e.target as HTMLElement).classList.remove('dragging');
     setSelected(new Set());
+    // Reset didDrag after a tick so the click on the same element is still suppressed,
+    // but clicks on other elements aren't blocked.
+    requestAnimationFrame(() => { didDrag.current = false; });
   }
 
   // Marquee rectangle in CSS coords
