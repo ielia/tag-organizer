@@ -107,3 +107,5 @@ These encode bugs that were already fixed. Re-breaking them is a regression.
 - Never create or modify `README.md` unless the user explicitly asks for it. Do not update
   it as a side effect of a code change, and do not offer to keep it in sync. When the user
   does ask, keep it limited to setup and run instructions for a human.
+- Deferred work is tracked in `BACKLOG.md`. Check it before proposing new work, and move an
+  item out of it when it ships.
