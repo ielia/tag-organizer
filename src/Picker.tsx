@@ -198,7 +198,12 @@ export default function Picker({
 
   return (
     <div className="panel picker">
-      <div className="panel-label">Picker</div>
+      <div className="panel-header">
+        <div className="panel-label">Picker</div>
+        <span className="picker-count">
+          ({selected.size} of {tags.length} selected)
+        </span>
+      </div>
       <div className="picker-filter-wrap">
         <input
           className="picker-filter"

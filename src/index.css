@@ -296,6 +296,12 @@ html, body, #root {
   grid-row: 1;
 }
 
+.picker-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .picker-actions {
   display: flex;
   flex-wrap: nowrap;
