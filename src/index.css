@@ -592,6 +592,9 @@ html, body, #root {
 .drag-handle {
   flex-shrink: 0;
   cursor: grab;
+  /* Claim the gesture before it becomes a scroll. Read when the touch starts, which
+     is on the handle itself, so unlike the long-press tag drag this is enough. */
+  touch-action: none;
   font-size: 18px;
   color: var(--handle);
   user-select: none;

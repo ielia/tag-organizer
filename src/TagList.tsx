@@ -35,6 +35,8 @@ interface ReorderState {
 }
 
 const GAP = 4; // must match .tag-list-rows gap
+const EDGE = 48; // px from a list edge where auto-scroll kicks in
+const EDGE_SPEED = 720; // px per second at the very edge
 
 export default function TagList({
   rows,
@@ -54,8 +56,10 @@ export default function TagList({
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
   const [dragOverNew, setDragOverNew] = useState(false);
   const [reorder, setReorder] = useState<ReorderState | null>(null);
+  const reordering = reorder !== null;
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const listRef = useRef<HTMLDivElement>(null);
+  const pointerY = useRef(0);
 
   const handleCheckboxClick = useCallback(
     (rowId: string, e: MouseEvent) => {
@@ -129,6 +133,7 @@ export default function TagList({
     if (!rowEl) return;
     const rect = rowEl.getBoundingClientRect();
     const sourceIdx = rows.findIndex((r) => r.id === rowId);
+    pointerY.current = e.clientY;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     setReorder({
       rowId,
@@ -142,33 +147,77 @@ export default function TagList({
     });
   }
 
+  // Compute drop index from midpoints of non-dragged rows.
+  const computeDropIdx = useCallback((clientY: number, prev: ReorderState) => {
+    const listEl = listRef.current;
+    if (!listEl) return prev.dropIdx;
+    const listRect = listEl.getBoundingClientRect();
+    const relY = clientY - listRect.top + listEl.scrollTop;
+
+    const otherRows = rows.filter((r) => r.id !== prev.rowId);
+    let dropIdx = otherRows.length;
+    let accum = 0;
+    for (let i = 0; i < otherRows.length; i++) {
+      const el = rowRefs.current.get(otherRows[i].id);
+      const h = el ? el.offsetHeight : prev.rowHeight;
+      if (relY < accum + h / 2) {
+        dropIdx = i;
+        break;
+      }
+      accum += h + GAP;
+    }
+    return dropIdx;
+  }, [rows]);
+
+  // Scroll the list when the dragged row is held near an edge.
+  useEffect(() => {
+    if (!reordering) return;
+    let frame = 0;
+    let last = performance.now();
+
+    function step(now: number) {
+      frame = requestAnimationFrame(step);
+      // Scale by elapsed time, so the speed does not double on a 120Hz display.
+      const seconds = Math.min(now - last, 100) / 1000;
+      last = now;
+
+      const listEl = listRef.current;
+      if (!listEl) return;
+
+      const rect = listEl.getBoundingClientRect();
+      const y = pointerY.current;
+      let delta = 0;
+      if (y < rect.top + EDGE) {
+        delta = -EDGE_SPEED * seconds * Math.min(1, (rect.top + EDGE - y) / EDGE);
+      } else if (y > rect.bottom - EDGE) {
+        delta = EDGE_SPEED * seconds * Math.min(1, (y - (rect.bottom - EDGE)) / EDGE);
+      }
+      if (delta === 0) return;
+
+      const before = listEl.scrollTop;
+      listEl.scrollTop += delta;
+      if (listEl.scrollTop === before) return; // already at the end
+
+      // The finger has not moved, but the rows under it have.
+      setReorder((prev) => {
+        if (!prev) return prev;
+        const dropIdx = computeDropIdx(pointerY.current, prev);
+        return dropIdx === prev.dropIdx ? prev : { ...prev, dropIdx };
+      });
+    }
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [reordering, computeDropIdx]);
+
   useEffect(() => {
     if (!reorder) return;
 
     function onPointerMove(e: PointerEvent) {
-      setReorder((prev) => {
-        if (!prev) return prev;
-        const listEl = listRef.current;
-        if (!listEl) return prev;
-        const listRect = listEl.getBoundingClientRect();
-        const relY = e.clientY - listRect.top + listEl.scrollTop;
-
-        // Compute drop index from midpoints of non-dragged rows
-        const otherRows = rows.filter((r) => r.id !== prev.rowId);
-        let dropIdx = otherRows.length;
-        let accum = 0;
-        for (let i = 0; i < otherRows.length; i++) {
-          const el = rowRefs.current.get(otherRows[i].id);
-          const h = el ? el.offsetHeight : prev.rowHeight;
-          if (relY < accum + h / 2) {
-            dropIdx = i;
-            break;
-          }
-          accum += h + GAP;
-        }
-
-        return { ...prev, currentY: e.clientY, dropIdx };
-      });
+      pointerY.current = e.clientY;
+      setReorder((prev) =>
+        prev ? { ...prev, currentY: e.clientY, dropIdx: computeDropIdx(e.clientY, prev) } : prev,
+      );
     }
 
     function onPointerUp() {
@@ -190,13 +239,21 @@ export default function TagList({
       });
     }
 
+    // Backstop for browsers that started a pan anyway, e.g. when the finger leaves
+    // the handle mid-drag.
+    function blockScroll(e: TouchEvent) {
+      e.preventDefault();
+    }
+
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('touchmove', blockScroll, { passive: false });
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('touchmove', blockScroll);
     };
-  }, [reorder, rows, onRowsChange]);
+  }, [reorder, rows, onRowsChange, computeDropIdx]);
 
   // --- Tag drag handlers for existing rows ---
   function onRowDragOver(e: DragEvent, rowId: string) {
