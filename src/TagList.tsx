@@ -1,10 +1,24 @@
-import { useState, useRef, useCallback, useEffect, type DragEvent, type MouseEvent } from 'react';
-import type { TagRow } from './types';
-import { PALETTE } from './palette';
+import { useState, useRef, useCallback, useEffect, type Dispatch, type DragEvent, type MouseEvent, type SetStateAction } from 'react';
+import type { TagDrag, TagRow } from './types';
+import { MAX_ROWS, PALETTE } from './palette';
+import { moveTagsToNewRow, moveTagsToRow } from './rowOps';
+import { useLongPressDrag } from './useLongPressDrag';
 
 interface TagListProps {
   rows: TagRow[];
   onRowsChange: (rows: TagRow[]) => void;
+  /** Checked row ids. Owned by App so the picker's actions can target them. */
+  selected: Set<string>;
+  onSelectedChange: Dispatch<SetStateAction<Set<string>>>;
+  /** In-flight touch drag, owned by App; used to highlight the drop target. */
+  drag: TagDrag | null;
+  onTouchDragStart: (
+    tags: string[],
+    sourceRowId: string | null,
+    x: number,
+    y: number,
+    onDone?: () => void,
+  ) => void;
 }
 
 interface ReorderState {
@@ -20,13 +34,19 @@ interface ReorderState {
 
 const GAP = 4; // must match .tag-list-rows gap
 
-export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagListProps) {
+export default function TagList({
+  rows,
+  onRowsChange: onRowsChangeProp,
+  selected,
+  onSelectedChange: setSelected,
+  drag,
+  onTouchDragStart,
+}: TagListProps) {
   const onRowsChange = useCallback(
     (newRows: TagRow[]) => onRowsChangeProp(newRows.filter((r) => r.tags.length > 0)),
     [onRowsChangeProp],
   );
 
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
   const [dragOverNew, setDragOverNew] = useState(false);
@@ -59,6 +79,10 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
     },
     [lastClickedId, rows],
   );
+
+  const longPress = useLongPressDrag<{ tag: string; rowId: string }>(({ tag, rowId }, x, y) => {
+    onTouchDragStart([tag], rowId, x, y);
+  });
 
   function onTagDragStart(e: DragEvent, tag: string, rowId: string) {
     e.stopPropagation();
@@ -189,26 +213,16 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
     setDragOverRowId(null);
     const tags = raw.split('\n').filter(Boolean);
     const sourceRowId = e.dataTransfer.getData('application/x-source-row');
-    if (sourceRowId === rowId) return;
-    const tagSet = new Set(tags);
-    onRowsChange(
-      rows.map((r) => {
-        if (r.id === sourceRowId) {
-          return { ...r, tags: r.tags.filter((t) => !tagSet.has(t)) };
-        }
-        if (r.id === rowId) {
-          const newTags = tags.filter((t) => !r.tags.includes(t));
-          if (newTags.length === 0) return r;
-          return { ...r, tags: [...r.tags, ...newTags].sort((a, b) => a.localeCompare(b)) };
-        }
-        return r;
-      }),
-    );
+    onRowsChange(moveTagsToRow(rows, rowId, tags, sourceRowId || null));
   }
 
   // --- Drag handlers for new-row drop zone ---
   function onNewDragOver(e: DragEvent) {
     e.preventDefault();
+    if (rows.length >= MAX_ROWS) {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
     e.dataTransfer.dropEffect = e.dataTransfer.types.includes('application/x-source-row') ? 'move' : 'copy';
     setDragOverNew(true);
   }
@@ -224,22 +238,14 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
     setDragOverNew(false);
     const tags = raw.split('\n').filter(Boolean);
     const sourceRowId = e.dataTransfer.getData('application/x-source-row');
-    const tagSet = new Set(tags);
-    const newRow: TagRow = {
-      id: crypto.randomUUID(),
-      tags: tags.sort((a, b) => a.localeCompare(b)),
-    };
-    if (sourceRowId) {
-      onRowsChange([
-        ...rows.map((r) =>
-          r.id === sourceRowId ? { ...r, tags: r.tags.filter((t) => !tagSet.has(t)) } : r,
-        ),
-        newRow,
-      ]);
-      return;
-    }
-    onRowsChange([...rows, newRow]);
+    onRowsChange(moveTagsToNewRow(rows, tags, sourceRowId || null));
   }
+
+  const atRowLimit = rows.length >= MAX_ROWS;
+
+  // A drop target lights up for whichever drag system is in flight.
+  const overRowId = dragOverRowId ?? drag?.overRowId ?? null;
+  const overNew = dragOverNew || !!drag?.overNew;
 
   // Floating row position
   const floatingTop = reorder ? reorder.currentY - reorder.offsetY : 0;
@@ -255,7 +261,8 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
           <div
             key={row.id}
             ref={(el) => { if (el) rowRefs.current.set(row.id, el); }}
-            className={`tag-row${selected.has(row.id) ? ' selected' : ''}${dragOverRowId === row.id ? ' drag-over' : ''}`}
+            data-row-id={row.id}
+            className={`tag-row${selected.has(row.id) ? ' selected' : ''}${overRowId === row.id ? ' drag-over' : ''}`}
             style={{ background: PALETTE[ci] + '22' }}
             onDragOver={(e) => onRowDragOver(e, row.id)}
             onDragLeave={(e) => onRowDragLeave(e, row.id)}
@@ -284,6 +291,10 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
                   draggable
                   onDragStart={(e) => onTagDragStart(e, tag, row.id)}
                   onDragEnd={onTagDragEnd}
+                  onPointerDown={(e) => longPress.onPointerDown(e, { tag, rowId: row.id })}
+                  onPointerMove={longPress.onPointerMove}
+                  onPointerUp={longPress.onPointerUp}
+                  onPointerCancel={longPress.onPointerCancel}
                   style={{
                     background: PALETTE[ci] + '44',
                     borderColor: PALETTE[ci] + '66',
@@ -347,7 +358,8 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
         <div
           key={row.id}
           ref={(el) => { if (el) rowRefs.current.set(row.id, el); }}
-          className={`tag-row${selected.has(row.id) ? ' selected' : ''}${dragOverRowId === row.id ? ' drag-over' : ''}`}
+          data-row-id={row.id}
+          className={`tag-row${selected.has(row.id) ? ' selected' : ''}${overRowId === row.id ? ' drag-over' : ''}`}
           style={{ background: PALETTE[ci] + '22' }}
           onDragOver={(e) => onRowDragOver(e, row.id)}
           onDragLeave={(e) => onRowDragLeave(e, row.id)}
@@ -417,9 +429,9 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
 
   return (
     <div className="panel tag-list">
-      <div className="list-header">
+      <div className="panel-header">
         <span className="panel-label">List</span>
-        <div className="list-header-actions">
+        <div className="panel-header-actions">
           <button
             className="select-btn"
             disabled={rows.length === 0 || selected.size === rows.length}
@@ -440,12 +452,12 @@ export default function TagList({ rows, onRowsChange: onRowsChangeProp }: TagLis
         {renderRows()}
       </div>
       <div
-        className={`new-row-drop${dragOverNew ? ' drag-over' : ''}`}
+        className={`new-row-drop${overNew && !atRowLimit ? ' drag-over' : ''}${atRowLimit ? ' full' : ''}`}
         onDragOver={onNewDragOver}
         onDragLeave={onNewDragLeave}
         onDrop={onNewDrop}
       >
-        Drop here to create a new row
+        {atRowLimit ? `Row limit reached (${MAX_ROWS})` : 'Drop here to create a new row'}
       </div>
 
       {/* Floating row preview */}

@@ -43,17 +43,69 @@ html, body, #root {
   grid-row: 1;
 }
 
+.picker-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+/* Pushes itself, and nothing after it, to the right edge. */
+.picker-actions-end {
+  margin-left: auto;
+}
+
+.picker-actions .select-btn {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Touch-only: the long-press drag has no visible affordance, unlike a mouse drag. */
+.picker-hint {
+  display: none;
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #555;
+  flex-shrink: 0;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .picker-hint {
+    display: block;
+  }
+}
+
+.picker-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.filter-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Clearing the filter isn't destructive, so skip the red delete hover.
+   Kept more specific than .delete-btn:hover, which is defined further down. */
+.delete-btn.filter-clear:hover {
+  background: rgba(255,255,255,0.3);
+  color: #fff;
+}
+
 .picker-filter {
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 32px 8px 12px;
   border: 1px solid #2a2a4a;
   border-radius: 6px;
   background: #0f0f23;
   color: #e0e0e0;
   font-size: 14px;
   outline: none;
-  margin-bottom: 8px;
-  flex-shrink: 0;
 }
 
 .picker-filter:focus {
@@ -80,6 +132,8 @@ html, body, #root {
   font-size: 13px;
   cursor: grab;
   user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
   white-space: nowrap;
   background: #2a2a4a;
   color: #e0e0e0;
@@ -122,7 +176,18 @@ html, body, #root {
   border: 1px solid #3a3a5a;
 }
 
-.balloon .delete-btn {
+/* Touch drag preview: rides above the finger so the tags stay visible, and must not
+   be hit-tested, or elementFromPoint would return the ghost instead of the drop target. */
+.touch-ghost {
+  position: fixed;
+  transform: translate(-50%, -150%);
+  pointer-events: none;
+  z-index: 1000;
+  border-color: #4D96FF;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.delete-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,7 +203,7 @@ html, body, #root {
   padding: 0;
 }
 
-.balloon .delete-btn:hover {
+.delete-btn:hover {
   background: rgba(255,80,80,0.6);
   color: #fff;
 }
@@ -150,7 +215,7 @@ html, body, #root {
   position: relative;
 }
 
-.list-header {
+.panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -158,11 +223,11 @@ html, body, #root {
   margin-bottom: 8px;
 }
 
-.list-header .panel-label {
+.panel-header .panel-label {
   margin-bottom: 0;
 }
 
-.list-header-actions {
+.panel-header-actions {
   display: flex;
   gap: 6px;
 }
@@ -188,10 +253,19 @@ html, body, #root {
   cursor: default;
 }
 
+/* One grid column sized minmax(min-content, 100%): min-content is the widest row's
+   unwrappable width (its longest single tag), so the column is the panel width unless
+   some tag is wider, and every row stretches to it. max-content would size the column
+   to a row's full unwrapped length and stop tags wrapping altogether. */
 .tag-list-rows {
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(min-content, 100%);
+  /* Each row is exactly as tall as its content. Without this, auto tracks let rows
+     compress once they overflow the panel, flattening wrapped rows to one line —
+     the grid equivalent of the flex-shrink: 0 on .tag-row. */
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 4px;
 }
 
@@ -318,6 +392,11 @@ html, body, #root {
   margin-top: 4px;
 }
 
+.new-row-drop.full {
+  opacity: 0.5;
+  border-style: solid;
+}
+
 .new-row-drop.drag-over {
   border-color: #4D96FF;
   background: rgba(77,150,255,0.1);
@@ -327,6 +406,10 @@ html, body, #root {
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -337,4 +420,25 @@ html, body, #root {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a5a;
+}
+
+/* Narrow screens: one pane per row, page scrolls instead of each pane. */
+@media (max-width: 700px) {
+  html, body, #root {
+    height: auto;
+  }
+
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(200px, auto);
+    height: auto;
+    min-height: 100%;
+  }
+
+  .picker,
+  .tag-list {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }

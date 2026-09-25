@@ -1,7 +1,21 @@
-import { useEffect, useRef, useState, useCallback, type DragEvent, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, type DragEvent } from 'react';
+import { useLongPressDrag } from './useLongPressDrag';
 
 interface PickerProps {
   tags: string[];
+  onTagDragStart: (
+    tags: string[],
+    sourceRowId: string | null,
+    x: number,
+    y: number,
+    onDone?: () => void,
+  ) => void;
+  /** How many list rows are checked; the target of "Add to selected rows". */
+  selectedRowCount: number;
+  /** False once the list holds MAX_ROWS rows. */
+  canAddRow: boolean;
+  onAddToSelectedRows: (tags: string[]) => void;
+  onAddToNewRow: (tags: string[]) => void;
 }
 
 interface MarqueeState {
@@ -18,11 +32,17 @@ function rectsIntersect(
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-export default function Picker({ tags }: PickerProps) {
+export default function Picker({
+  tags,
+  onTagDragStart,
+  selectedRowCount,
+  canAddRow,
+  onAddToSelectedRows,
+  onAddToNewRow,
+}: PickerProps) {
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<MarqueeState | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const tagsRef = useRef<HTMLDivElement>(null);
   const balloonRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const preMarqueeSelected = useRef<Set<string>>(new Set());
@@ -31,17 +51,6 @@ export default function Picker({ tags }: PickerProps) {
   const filtered = tags
     .filter((t) => t.toLowerCase().includes(filter.toLowerCase()))
     .sort((a, b) => a.localeCompare(b));
-
-  // Clear selection when clicking outside the picker panel
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setSelected(new Set());
-      }
-    }
-    window.addEventListener('pointerdown', onPointerDown);
-    return () => window.removeEventListener('pointerdown', onPointerDown);
-  }, []);
 
   // Marquee: compute selected tags from rectangle
   const computeMarqueeSelection = useCallback(
@@ -92,6 +101,8 @@ export default function Picker({ tags }: PickerProps) {
   function onTagsPointerDown(e: React.PointerEvent) {
     // Only start marquee from empty space (not from a balloon)
     if ((e.target as HTMLElement).closest('.balloon')) return;
+    // Marquee is a mouse gesture; on touch the same drag must scroll the tag list.
+    if (e.pointerType !== 'mouse') return;
     e.preventDefault();
     preMarqueeSelected.current = e.ctrlKey || e.metaKey ? new Set(selected) : new Set();
     setMarquee({
@@ -100,26 +111,39 @@ export default function Picker({ tags }: PickerProps) {
       currentX: e.clientX,
       currentY: e.clientY,
     });
-    if (!(e.ctrlKey || e.metaKey)) {
-      setSelected(new Set());
-    }
   }
 
-  function onTagClick(tag: string, e: MouseEvent) {
+  function onTagClick(tag: string) {
     if (didDrag.current) {
       didDrag.current = false;
       return;
     }
-    if (e.ctrlKey || e.metaKey) {
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(tag)) next.delete(tag);
-        else next.add(tag);
-        return next;
-      });
-    } else {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  }
+
+  // A drag that starts on a selected tag carries the whole selection.
+  function dragPayload(tag: string) {
+    return selected.has(tag) && selected.size > 1
+      ? [...selected].sort((a, b) => a.localeCompare(b))
+      : [tag];
+  }
+
+  const longPress = useLongPressDrag<string>((tag, x, y) => {
+    didDrag.current = true;
+    onTagDragStart(dragPayload(tag), null, x, y, () => {
       setSelected(new Set());
-    }
+      requestAnimationFrame(() => { didDrag.current = false; });
+    });
+  });
+
+  function applyToSelection(action: (tags: string[]) => void) {
+    action([...selected].sort((a, b) => a.localeCompare(b)));
+    setSelected(new Set());
   }
 
   function onDragStart(e: DragEvent, tag: string) {
@@ -128,9 +152,7 @@ export default function Picker({ tags }: PickerProps) {
       return;
     }
     didDrag.current = true;
-    const tagsToSend = selected.has(tag) && selected.size > 1
-      ? [...selected].sort((a, b) => a.localeCompare(b))
-      : [tag];
+    const tagsToSend = dragPayload(tag);
     e.dataTransfer.setData('text/plain', tagsToSend.join('\n'));
     e.dataTransfer.effectAllowed = 'copy';
     (e.target as HTMLElement).classList.add('dragging');
@@ -169,15 +191,50 @@ export default function Picker({ tags }: PickerProps) {
     : null;
 
   return (
-    <div className="panel picker" ref={panelRef}>
+    <div className="panel picker">
       <div className="panel-label">Picker</div>
-      <input
-        className="picker-filter"
-        type="text"
-        placeholder="Filter tags..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
+      <div className="picker-filter-wrap">
+        <input
+          className="picker-filter"
+          type="text"
+          placeholder="Filter tags..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        {filter && (
+          <button
+            className="delete-btn filter-clear"
+            onClick={() => setFilter('')}
+            title="Clear filter"
+          >
+            x
+          </button>
+        )}
+      </div>
+      <div className="picker-actions">
+        <button
+          className="select-btn"
+          disabled={selected.size === 0 || !canAddRow}
+          onClick={() => applyToSelection(onAddToNewRow)}
+        >
+          As new row
+        </button>
+        <button
+          className="select-btn"
+          disabled={selected.size === 0 || selectedRowCount === 0}
+          onClick={() => applyToSelection(onAddToSelectedRows)}
+        >
+          Add to selected rows
+        </button>
+        <button
+          className="select-btn picker-actions-end"
+          disabled={selected.size === 0}
+          onClick={() => setSelected(new Set())}
+        >
+          Clear selection
+        </button>
+      </div>
+      <p className="picker-hint">Tap to select &middot; hold to drag</p>
       <div
         className="picker-tags"
         ref={tagsRef}
@@ -189,7 +246,11 @@ export default function Picker({ tags }: PickerProps) {
             ref={(el) => { if (el) balloonRefs.current.set(tag, el); }}
             className={`balloon${selected.has(tag) ? ' balloon-selected' : ''}`}
             draggable
-            onClick={(e) => onTagClick(tag, e)}
+            onClick={() => onTagClick(tag)}
+            onPointerDown={(e) => longPress.onPointerDown(e, tag)}
+            onPointerMove={longPress.onPointerMove}
+            onPointerUp={longPress.onPointerUp}
+            onPointerCancel={longPress.onPointerCancel}
             onDragStart={(e) => onDragStart(e, tag)}
             onDragEnd={onDragEnd}
           >
