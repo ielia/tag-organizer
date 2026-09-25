@@ -34,6 +34,10 @@ Directives for Claude Code when working in this repository.
   anything new. A small amount of local code beats a new dependency.
 - Keep state where it is: the row list lives in `App.tsx`; `Picker` and `TagList` own only
   their own interaction state. Do not introduce a store or context to move it.
+- Rows and the sidebar options persist to `localStorage` through `src/storage.ts`. Every
+  read is validated there, because storage can hold anything a user typed into it, and
+  every call is wrapped — `localStorage` throws outright when disabled or full. A new
+  persisted value gets its own validated loader, never a bare `JSON.parse`.
 
 ## Code conventions
 
@@ -42,6 +46,10 @@ Directives for Claude Code when working in this repository.
 - Follow the existing style: function components with hooks, named `function` declarations
   for handlers, `type`-only imports for types, two-space indent, single quotes.
 - Styling is plain CSS in `src/index.css`, addressed by class name. Add rules there.
+- Never write a colour literal in a rule. Every colour is a theme token defined once at the
+  top of `index.css` for `[data-theme="dark"]` and `[data-theme="light"]`; a new colour
+  means a new token in both themes. Rules key off `data-theme` only — `applyDarkMode`
+  resolves "system" to one of the two, so nothing keys off `prefers-color-scheme`.
   Do not use inline styles except for values computed at runtime (palette colors, drag
   geometry), and do not introduce CSS modules or styled-components.
 - Shared types go in `src/types.ts`, colors in `src/palette.ts`. Do not duplicate either.

@@ -5,7 +5,24 @@ import TagList from './TagList';
 import type { TagDrag, TagRow } from './types';
 import { addTagsToRows, moveTagsToNewRow, moveTagsToRow } from './rowOps';
 import { MAX_ROWS } from './palette';
-import { TAG_ELLIPSIS, TAG_MAX_WIDTH, applyTagEllipsis } from './config';
+import {
+  DARK_MODE,
+  TAG_ELLIPSIS,
+  TAG_MAX_WIDTH,
+  applyDarkMode,
+  applyTagEllipsis,
+} from './config';
+import type { DarkMode } from './config';
+import {
+  loadDarkMode,
+  loadRows,
+  loadSelectedRows,
+  loadTagEllipsis,
+  saveDarkMode,
+  saveRows,
+  saveSelectedRows,
+  saveTagEllipsis,
+} from './storage';
 
 const ALL_TAGS = [
   'React', 'TypeScript', 'JavaScript', 'CSS', 'HTML',
@@ -26,15 +43,41 @@ function hitTest(x: number, y: number) {
 }
 
 export default function App() {
-  const [rows, setRows] = useState<TagRow[]>([]);
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [rows, setRows] = useState<TagRow[]>(() => loadRows() ?? []);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(() => {
+    // Rows load first, so a checked row that no longer exists is dropped here.
+    const ids = new Set(rows.map((r) => r.id));
+    return new Set((loadSelectedRows() ?? []).filter((id) => ids.has(id)));
+  });
   const [drag, setDrag] = useState<TagDrag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [tagEllipsis, setTagEllipsis] = useState(TAG_ELLIPSIS !== null);
+  const [tagEllipsis, setTagEllipsis] = useState(() => loadTagEllipsis() ?? TAG_ELLIPSIS !== null);
+
+  const [darkMode, setDarkMode] = useState<DarkMode>(() => loadDarkMode() ?? DARK_MODE);
+
+  useEffect(() => saveRows(rows), [rows]);
+
+  useEffect(() => {
+    // Rows pruned for being empty never pass through deleteRow, so filter on the way out.
+    const ids = new Set(rows.map((r) => r.id));
+    saveSelectedRows([...selectedRows].filter((id) => ids.has(id)));
+  }, [selectedRows, rows]);
 
   useEffect(() => {
     applyTagEllipsis(tagEllipsis ? TAG_MAX_WIDTH : null);
+    saveTagEllipsis(tagEllipsis);
   }, [tagEllipsis]);
+
+  useEffect(() => {
+    applyDarkMode(darkMode);
+    saveDarkMode(darkMode);
+    if (darkMode !== 'system') return;
+    // Only "system" has to track the OS changing underneath us.
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => applyDarkMode('system');
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, [darkMode]);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const onDragDone = useRef<(() => void) | null>(null);
@@ -123,6 +166,8 @@ export default function App() {
         onClose={closeMenu}
         tagEllipsis={tagEllipsis}
         onTagEllipsisChange={setTagEllipsis}
+        darkMode={darkMode}
+        onDarkModeChange={setDarkMode}
       />
 
       <div className="app">

@@ -1,3 +1,58 @@
+/* Theme tokens. data-theme is set on <html> by applyDarkMode in src/config.ts;
+   "system" resolves to one of these two, so no rule keys off prefers-color-scheme. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a1a2e;
+  --panel: #16213e;
+  --text: #e0e0e0;
+  --text-2: #ccc;
+  --text-muted: #555;
+  --text-strong: #fff;
+  --handle: #666;
+  --handle-hover: #aaa;
+  --border: #2a2a4a;
+  --input-bg: #0f0f23;
+  --balloon-bg: #2a2a4a;
+  --balloon-border: #3a3a5a;
+  --scroll-thumb: #2a2a4a;
+  --scroll-thumb-hover: #3a3a5a;
+  --accent: #4D96FF;
+  --fill-weak: rgba(255,255,255,0.07);
+  --fill: rgba(255,255,255,0.15);
+  --fill-hover: rgba(255,255,255,0.14);
+  --fill-strong: rgba(255,255,255,0.3);
+  --shadow: rgba(0,0,0,0.4);
+  --danger-hover: rgba(255,80,80,0.6);
+  --on-accent: #fff;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eceff6;
+  --panel: #ffffff;
+  --text: #1c2233;
+  --text-2: #4a4f63;
+  --text-muted: #8a90a6;
+  --text-strong: #10131f;
+  --handle: #9aa0b4;
+  --handle-hover: #4a4f63;
+  --border: #dde1ed;
+  --input-bg: #f6f7fb;
+  --balloon-bg: #e9ecf7;
+  --balloon-border: #d3d9ea;
+  --scroll-thumb: #ccd2e2;
+  --scroll-thumb-hover: #b4bcd2;
+  --accent: #2f7de1;
+  --fill-weak: rgba(0,0,0,0.05);
+  --fill: rgba(0,0,0,0.13);
+  --fill-hover: rgba(0,0,0,0.10);
+  --fill-strong: rgba(0,0,0,0.25);
+  --shadow: rgba(0,0,0,0.18);
+  --danger-hover: rgba(230,60,60,0.65);
+  --on-accent: #fff;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -7,8 +62,8 @@
 html, body, #root {
   height: 100%;
   font-family: system-ui, -apple-system, sans-serif;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .shell {
@@ -25,8 +80,8 @@ html, body, #root {
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  background: #16213e;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -34,7 +89,7 @@ html, body, #root {
   font-size: 12px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #555;
+  color: var(--text-muted);
 }
 
 .hamburger {
@@ -55,18 +110,18 @@ html, body, #root {
   display: block;
   height: 2px;
   border-radius: 1px;
-  background: #e0e0e0;
+  background: var(--text);
 }
 
 .hamburger:hover {
-  background: rgba(255,255,255,0.07);
+  background: var(--fill-weak);
 }
 
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1100;
-  background: rgba(0,0,0,0.4);
+  background: var(--shadow);
 }
 
 .sidebar {
@@ -78,9 +133,9 @@ html, body, #root {
   width: 260px;
   max-width: 80vw;
   padding: 12px;
-  background: #16213e;
-  border-right: 1px solid #2a2a4a;
-  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 24px var(--shadow);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -100,7 +155,7 @@ html, body, #root {
 .sidebar-close {
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -108,7 +163,7 @@ html, body, #root {
 }
 
 .sidebar-close:hover {
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .option {
@@ -126,7 +181,56 @@ html, body, #root {
 .option-hint {
   margin: 0;
   font-size: 11px;
-  color: #555;
+  color: var(--text-muted);
+}
+
+.option-dark-mode {
+  margin-top: 12px;
+}
+
+/* Same capsule as .switch, just divided into three. */
+.segmented {
+  display: flex;
+  flex-shrink: 0;
+  height: 22px; /* keep in step with .switch */
+  border: 1px solid var(--fill);
+  border-radius: 11px;
+  background: var(--fill-weak);
+  overflow: hidden;
+}
+
+.segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 100%;
+  padding: 0;
+  background: var(--fill-weak);
+  border: none;
+  border-left: 1px solid var(--fill);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+/* One device icon per input type, matching what "system" actually follows. */
+.icon-touch {
+  display: none;
+}
+
+.segment:first-child {
+  border-left: none;
+}
+
+.segment:hover:not(.on) {
+  background: var(--fill-hover);
+  color: var(--text-strong);
+}
+
+.segment.on {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .switch {
@@ -134,16 +238,16 @@ html, body, #root {
   width: 40px;
   height: 22px;
   padding: 2px;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--fill);
   border-radius: 11px;
-  background: rgba(255,255,255,0.07);
+  background: var(--fill-weak);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .switch.on {
-  background: #4D96FF;
-  border-color: #4D96FF;
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .switch-knob {
@@ -151,7 +255,7 @@ html, body, #root {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #e0e0e0;
+  background: var(--text);
   transition: transform 0.15s;
 }
 
@@ -170,7 +274,7 @@ html, body, #root {
 }
 
 .panel {
-  background: #16213e;
+  background: var(--panel);
   border-radius: 8px;
   padding: 12px;
   overflow: hidden;
@@ -182,7 +286,7 @@ html, body, #root {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -216,7 +320,7 @@ html, body, #root {
   display: none;
   margin: 0 0 6px;
   font-size: 11px;
-  color: #555;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -240,23 +344,23 @@ html, body, #root {
 /* Clearing the filter isn't destructive, so skip the red delete hover.
    Kept more specific than .delete-btn:hover, which is defined further down. */
 .delete-btn.filter-clear:hover {
-  background: rgba(255,255,255,0.3);
-  color: #fff;
+  background: var(--fill-strong);
+  color: var(--text-strong);
 }
 
 .picker-filter {
   width: 100%;
   padding: 8px 32px 8px 12px;
-  border: 1px solid #2a2a4a;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #0f0f23;
-  color: #e0e0e0;
+  background: var(--input-bg);
+  color: var(--text);
   font-size: 14px;
   outline: none;
 }
 
 .picker-filter:focus {
-  border-color: #4D96FF;
+  border-color: var(--accent);
 }
 
 .picker-tags {
@@ -282,9 +386,9 @@ html, body, #root {
   -webkit-touch-callout: none;
   touch-action: manipulation;
   white-space: nowrap;
-  background: #2a2a4a;
-  color: #e0e0e0;
-  border: 1px solid #3a3a5a;
+  background: var(--balloon-bg);
+  color: var(--text);
+  border: 1px solid var(--balloon-border);
   transition: opacity 0.15s;
   /* --tag-max-width comes from TAG_ELLIPSIS in src/config.ts. With 'none' the
      balloon never constrains its text, so the rules below are inert. */
@@ -311,13 +415,13 @@ html, body, #root {
 }
 
 .balloon.balloon-selected {
-  border-color: #4D96FF;
-  box-shadow: 0 0 0 1px #4D96FF;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .marquee {
   position: fixed;
-  border: 1px solid #4D96FF;
+  border: 1px solid var(--accent);
   background: rgba(77, 150, 255, 0.12);
   pointer-events: none;
   z-index: 999;
@@ -332,9 +436,9 @@ html, body, #root {
   gap: 4px;
   max-width: 300px;
   padding: 6px;
-  background: #16213e;
+  background: var(--panel);
   border-radius: 8px;
-  border: 1px solid #3a3a5a;
+  border: 1px solid var(--balloon-border);
 }
 
 /* Touch drag preview: rides above the finger so the tags stay visible, and must not
@@ -344,8 +448,8 @@ html, body, #root {
   transform: translate(-50%, -150%);
   pointer-events: none;
   z-index: 1000;
-  border-color: #4D96FF;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 .delete-btn {
@@ -356,8 +460,8 @@ html, body, #root {
   height: 16px;
   border-radius: 50%;
   border: none;
-  background: rgba(255,255,255,0.15);
-  color: #ccc;
+  background: var(--fill);
+  color: var(--text-2);
   font-size: 11px;
   cursor: pointer;
   line-height: 1;
@@ -365,8 +469,8 @@ html, body, #root {
 }
 
 .delete-btn:hover {
-  background: rgba(255,80,80,0.6);
-  color: #fff;
+  background: var(--danger-hover);
+  color: var(--text-strong);
 }
 
 /* --- List (bottom-left) --- */
@@ -394,9 +498,9 @@ html, body, #root {
 }
 
 .select-btn {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #e0e0e0;
+  background: var(--fill-weak);
+  border: 1px solid var(--fill);
+  color: var(--text);
   border-radius: 4px;
   padding: 2px 8px;
   cursor: pointer;
@@ -405,9 +509,9 @@ html, body, #root {
 }
 
 .select-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.14);
-  border-color: #4D96FF;
-  color: #fff;
+  background: var(--fill-hover);
+  border-color: var(--accent);
+  color: var(--text-strong);
 }
 
 .select-btn:disabled {
@@ -451,11 +555,11 @@ html, body, #root {
 }
 
 .tag-row.selected {
-  border-color: rgba(255,255,255,0.3);
+  border-color: var(--fill-strong);
 }
 
 .tag-row.drag-over {
-  border-color: #4D96FF;
+  border-color: var(--accent);
   background: rgba(77,150,255,0.1);
 }
 
@@ -473,7 +577,7 @@ html, body, #root {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #4D96FF;
+  accent-color: var(--accent);
 }
 
 .tag-row .row-tags {
@@ -489,14 +593,14 @@ html, body, #root {
   flex-shrink: 0;
   cursor: grab;
   font-size: 18px;
-  color: #666;
+  color: var(--handle);
   user-select: none;
   padding: 0 2px;
   line-height: 1;
 }
 
 .drag-handle:hover {
-  color: #aaa;
+  color: var(--handle-hover);
 }
 
 .drag-handle:active {
@@ -521,7 +625,7 @@ html, body, #root {
   opacity: 0.5;
   transition: opacity 0.15s;
   flex-shrink: 0;
-  color: #e0e0e0;
+  color: var(--text);
 }
 
 .row-delete-btn:hover {
@@ -539,9 +643,9 @@ html, body, #root {
   gap: 8px;
   padding: 6px 8px;
   border-radius: 6px;
-  border: 2px solid #4D96FF;
+  border: 2px solid var(--accent);
   min-height: 40px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(77,150,255,0.2);
+  box-shadow: 0 8px 24px var(--shadow), 0 0 0 1px rgba(77,150,255,0.2);
   opacity: 0.92;
   transform: scale(1.02);
   backdrop-filter: blur(4px);
@@ -549,14 +653,14 @@ html, body, #root {
 
 /* --- Drop zone for new row --- */
 .new-row-drop {
-  border: 2px dashed #2a2a4a;
+  border: 2px dashed var(--border);
   border-radius: 6px;
   min-height: 40px;
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
+  color: var(--text-muted);
   font-size: 13px;
   transition: border-color 0.15s, background 0.15s;
   margin-top: 4px;
@@ -568,9 +672,9 @@ html, body, #root {
 }
 
 .new-row-drop.drag-over {
-  border-color: #4D96FF;
+  border-color: var(--accent);
   background: rgba(77,150,255,0.1);
-  color: #4D96FF;
+  color: var(--accent);
 }
 
 /* Scrollbar styling */
@@ -585,11 +689,11 @@ html, body, #root {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a4a;
+  background: var(--scroll-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a5a;
+  background: var(--scroll-thumb-hover);
 }
 
 /* Narrow screens: one pane per row, page scrolls instead of each pane. */
@@ -658,5 +762,22 @@ html, body, #root {
 
   .switch.on .switch-knob {
     transform: translateX(22px);
+  }
+
+  .segmented {
+    height: 30px; /* .switch height on touch */
+    border-radius: 15px;
+  }
+
+  .segment {
+    width: 44px;
+  }
+
+  .icon-pointer {
+    display: none;
+  }
+
+  .icon-touch {
+    display: block;
   }
 }

@@ -23,3 +23,22 @@ export function applyTagEllipsis(value: string | null) {
   root.setProperty('--row-track-min', value === null ? 'min-content' : '0');
   root.setProperty('--row-item-min', value === null ? 'auto' : '0');
 }
+
+/** "system" follows the OS setting; the other two override it. */
+export type DarkMode = 'on' | 'off' | 'system';
+
+/** Initial value of the "Dark mode" option. */
+export const DARK_MODE: DarkMode = 'system';
+
+export const prefersDark = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+/**
+ * Resolves the mode to a concrete theme on <html>. Stylesheet rules key off
+ * data-theme only, so "system" never leaks into CSS.
+ */
+export function applyDarkMode(mode: DarkMode) {
+  const dark = mode === 'on' || (mode === 'system' && prefersDark());
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}
