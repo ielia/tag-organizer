@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Picker from './Picker';
+import Sidebar from './Sidebar';
 import TagList from './TagList';
 import type { TagDrag, TagRow } from './types';
 import { addTagsToRows, moveTagsToNewRow, moveTagsToRow } from './rowOps';
 import { MAX_ROWS } from './palette';
+import { TAG_ELLIPSIS, TAG_MAX_WIDTH, applyTagEllipsis } from './config';
 
 const ALL_TAGS = [
   'React', 'TypeScript', 'JavaScript', 'CSS', 'HTML',
@@ -27,6 +29,14 @@ export default function App() {
   const [rows, setRows] = useState<TagRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [drag, setDrag] = useState<TagDrag | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [tagEllipsis, setTagEllipsis] = useState(TAG_ELLIPSIS !== null);
+
+  useEffect(() => {
+    applyTagEllipsis(tagEllipsis ? TAG_MAX_WIDTH : null);
+  }, [tagEllipsis]);
+
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const onDragDone = useRef<(() => void) | null>(null);
 
   const addToSelectedRows = useCallback(
@@ -93,7 +103,29 @@ export default function App() {
   }, [drag, rows]);
 
   return (
-    <div className="app">
+    <div className="shell">
+      <header className="app-header">
+        <button
+          className="hamburger"
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-label="Options"
+          aria-expanded={menuOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <span className="app-title">Tag Organizer</span>
+      </header>
+
+      <Sidebar
+        open={menuOpen}
+        onClose={closeMenu}
+        tagEllipsis={tagEllipsis}
+        onTagEllipsisChange={setTagEllipsis}
+      />
+
+      <div className="app">
       <div className="panel">
         <div className="panel-label">Top Left</div>
       </div>
@@ -104,6 +136,7 @@ export default function App() {
         canAddRow={rows.length < MAX_ROWS}
         onAddToSelectedRows={addToSelectedRows}
         onAddToNewRow={addToNewRow}
+        showTagTitle={tagEllipsis}
       />
       <TagList
         rows={rows}
@@ -112,15 +145,19 @@ export default function App() {
         onSelectedChange={setSelectedRows}
         drag={drag}
         onTouchDragStart={startTagDrag}
+        showTagTitle={tagEllipsis}
       />
       <div className="panel">
         <div className="panel-label">Bottom Right</div>
+      </div>
       </div>
 
       {drag && (
         <div className="drag-ghost touch-ghost" style={{ left: drag.x, top: drag.y }}>
           {drag.tags.map((tag) => (
-            <span key={tag} className="balloon">{tag}</span>
+            <span key={tag} className="balloon">
+              <span className="balloon-text">{tag}</span>
+            </span>
           ))}
         </div>
       )}

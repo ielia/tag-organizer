@@ -45,9 +45,9 @@ Directives for Claude Code when working in this repository.
   Do not use inline styles except for values computed at runtime (palette colors, drag
   geometry), and do not introduce CSS modules or styled-components.
 - Shared types go in `src/types.ts`, colors in `src/palette.ts`. Do not duplicate either.
-- The responsive `@media` block must stay at the end of `index.css`. Media queries add no
-  specificity, so it beats the pane placement rules (`.picker`, `.tag-list`) by source
-  order alone — moved earlier, it silently stops applying.
+- The `@media` blocks must stay at the end of `index.css`. Media queries add no
+  specificity, so they beat the rules they override (`.picker`, `.tag-list`, `.select-btn`)
+  by source order alone — moved earlier, they silently stop applying.
 
 ## Rules specific to this code
 
@@ -73,6 +73,15 @@ These encode bugs that were already fixed. Re-breaking them is a regression.
 - `TagList` renders the dragged row twice during reorder: a collapsed in-flow placeholder
   and a fixed-position floating clone. Any element added to a row must be added to the
   clone too, or multi-line rows collapse mid-drag.
+- A tag balloon is built in four places: the picker, the list rows, the floating clone, and
+  the two drag ghosts (`App.tsx`, and the imperative one in `Picker.tsx`). All of them need
+  the same `<span className="balloon-text">` around the tag name, or tags render
+  inconsistently between the list and a drag preview.
+- Tag width is capped through `applyTagEllipsis` in `src/config.ts`, which sets CSS
+  variables on the root element — the root, because the picker's drag image lives outside
+  the React tree on `document.body`. `main.tsx` applies `TAG_ELLIPSIS` before the first
+  paint; the sidebar switch re-applies it at runtime. Keep the three variables in that one
+  function; setting `--tag-max-width` alone does not truncate anything.
 - `GAP` in `TagList.tsx` must match the `gap` of `.tag-list-rows` in `index.css`. Change both.
 - Do not "simplify" the `didDrag` ref, its `requestAnimationFrame` reset in `onDragEnd`, or
   the `preventDefault()` guards in `onDragStart` / `onRowDragStart`. Each works around a

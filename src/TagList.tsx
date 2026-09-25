@@ -19,6 +19,8 @@ interface TagListProps {
     y: number,
     onDone?: () => void,
   ) => void;
+  /** Truncated tags are unreadable, so hovering must reveal the full name. */
+  showTagTitle: boolean;
 }
 
 interface ReorderState {
@@ -41,6 +43,7 @@ export default function TagList({
   onSelectedChange: setSelected,
   drag,
   onTouchDragStart,
+  showTagTitle,
 }: TagListProps) {
   const onRowsChange = useCallback(
     (newRows: TagRow[]) => onRowsChangeProp(newRows.filter((r) => r.tags.length > 0)),
@@ -288,6 +291,7 @@ export default function TagList({
                 <span
                   key={tag}
                   className="balloon"
+                  title={showTagTitle ? tag : undefined}
                   draggable
                   onDragStart={(e) => onTagDragStart(e, tag, row.id)}
                   onDragEnd={onTagDragEnd}
@@ -300,7 +304,7 @@ export default function TagList({
                     borderColor: PALETTE[ci] + '66',
                   }}
                 >
-                  {tag}
+                  <span className="balloon-text">{tag}</span>
                   <button
                     className="delete-btn"
                     onClick={() => removeTagFromRow(row.id, tag)}
@@ -384,12 +388,13 @@ export default function TagList({
               <span
                 key={tag}
                 className="balloon"
+                title={showTagTitle ? tag : undefined}
                 style={{
                   background: PALETTE[ci] + '44',
                   borderColor: PALETTE[ci] + '66',
                 }}
               >
-                {tag}
+                <span className="balloon-text">{tag}</span>
                 <button
                   className="delete-btn"
                   onClick={() => removeTagFromRow(row.id, tag)}
@@ -486,12 +491,13 @@ export default function TagList({
               <span
                 key={tag}
                 className="balloon"
+                title={showTagTitle ? tag : undefined}
                 style={{
                   background: PALETTE[fci] + '44',
                   borderColor: PALETTE[fci] + '66',
                 }}
               >
-                {tag}
+                <span className="balloon-text">{tag}</span>
                 <span className="delete-btn">x</span>
               </span>
             ))}

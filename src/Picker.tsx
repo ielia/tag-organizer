@@ -16,6 +16,8 @@ interface PickerProps {
   canAddRow: boolean;
   onAddToSelectedRows: (tags: string[]) => void;
   onAddToNewRow: (tags: string[]) => void;
+  /** Truncated tags are unreadable, so hovering must reveal the full name. */
+  showTagTitle: boolean;
 }
 
 interface MarqueeState {
@@ -39,6 +41,7 @@ export default function Picker({
   canAddRow,
   onAddToSelectedRows,
   onAddToNewRow,
+  showTagTitle,
 }: PickerProps) {
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -163,7 +166,10 @@ export default function Picker({
       tagsToSend.forEach((t) => {
         const pill = document.createElement('span');
         pill.className = 'balloon';
-        pill.textContent = t;
+        const label = document.createElement('span');
+        label.className = 'balloon-text';
+        label.textContent = t;
+        pill.appendChild(label);
         ghost.appendChild(pill);
       });
       document.body.appendChild(ghost);
@@ -234,7 +240,10 @@ export default function Picker({
           Clear selection
         </button>
       </div>
-      <p className="picker-hint">Tap to select &middot; hold to drag</p>
+      <p className="picker-hint picker-hint-pointer">
+        Click to select &middot; drag to move &middot; box-select from empty space
+      </p>
+      <p className="picker-hint picker-hint-touch">Tap to select &middot; hold to drag</p>
       <div
         className="picker-tags"
         ref={tagsRef}
@@ -245,6 +254,7 @@ export default function Picker({
             key={tag}
             ref={(el) => { if (el) balloonRefs.current.set(tag, el); }}
             className={`balloon${selected.has(tag) ? ' balloon-selected' : ''}`}
+            title={showTagTitle ? tag : undefined}
             draggable
             onClick={() => onTagClick(tag)}
             onPointerDown={(e) => longPress.onPointerDown(e, tag)}
@@ -254,7 +264,7 @@ export default function Picker({
             onDragStart={(e) => onDragStart(e, tag)}
             onDragEnd={onDragEnd}
           >
-            {tag}
+            <span className="balloon-text">{tag}</span>
           </span>
         ))}
       </div>

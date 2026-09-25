@@ -11,11 +11,160 @@ html, body, #root {
   color: #e0e0e0;
 }
 
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #16213e;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: #e0e0e0;
+}
+
+.hamburger:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0,0,0,0.4);
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1200;
+  width: 260px;
+  max-width: 80vw;
+  padding: 12px;
+  background: #16213e;
+  border-right: 1px solid #2a2a4a;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sidebar-header .panel-label {
+  margin-bottom: 0;
+}
+
+.sidebar-close {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.sidebar-close:hover {
+  color: #fff;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.option-label {
+  font-size: 13px;
+}
+
+.option-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #555;
+}
+
+.switch {
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  padding: 2px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 11px;
+  background: rgba(255,255,255,0.07);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.switch.on {
+  background: #4D96FF;
+  border-color: #4D96FF;
+}
+
+.switch-knob {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  transition: transform 0.15s;
+}
+
+.switch.on .switch-knob {
+  transform: translateX(18px);
+}
+
 .app {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   gap: 4px;
   padding: 4px;
 }
@@ -71,10 +220,8 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .picker-hint {
-    display: block;
-  }
+.picker-hint-pointer {
+  display: block;
 }
 
 .picker-filter-wrap {
@@ -139,6 +286,20 @@ html, body, #root {
   color: #e0e0e0;
   border: 1px solid #3a3a5a;
   transition: opacity 0.15s;
+  /* --tag-max-width comes from TAG_ELLIPSIS in src/config.ts. With 'none' the
+     balloon never constrains its text, so the rules below are inert. */
+  max-width: var(--tag-max-width, none);
+}
+
+.balloon-text {
+  min-width: 0; /* flex items default to min-width: auto, which refuses to shrink */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balloon .delete-btn {
+  flex-shrink: 0; /* the label yields, never the button */
 }
 
 .balloon:active {
@@ -233,17 +394,18 @@ html, body, #root {
 }
 
 .select-btn {
-  background: none;
+  background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.15);
-  color: #ccc;
+  color: #e0e0e0;
   border-radius: 4px;
   padding: 2px 8px;
   cursor: pointer;
   font-size: 11px;
-  transition: opacity 0.15s, border-color 0.15s;
+  transition: opacity 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .select-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.14);
   border-color: #4D96FF;
   color: #fff;
 }
@@ -253,14 +415,20 @@ html, body, #root {
   cursor: default;
 }
 
-/* One grid column sized minmax(min-content, 100%): min-content is the widest row's
+/* --row-track-min and --row-item-min (set in main.tsx) decide whether a long tag may
+   widen the list. min-content/auto let the track, the row and the tag area grow to the
+   tag, which is what produces horizontal scrolling. 0/0 frees every one of them to
+   shrink below their content, so the track settles at 100% and a capped tag truncates.
+   The track minimum must stay min-content rather than auto: an auto minimum is clamped
+   to a fixed track maximum, which would cap the track at 100% and stop it growing.
+   One grid column sized minmax(<that>, 100%): min-content is the widest row's
    unwrappable width (its longest single tag), so the column is the panel width unless
    some tag is wider, and every row stretches to it. max-content would size the column
    to a row's full unwrapped length and stop tags wrapping altogether. */
 .tag-list-rows {
   overflow-y: auto;
   display: grid;
-  grid-template-columns: minmax(min-content, 100%);
+  grid-template-columns: minmax(var(--row-track-min, min-content), 100%);
   /* Each row is exactly as tall as its content. Without this, auto tracks let rows
      compress once they overflow the panel, flattening wrapped rows to one line —
      the grid equivalent of the flex-shrink: 0 on .tag-row. */
@@ -272,6 +440,7 @@ html, body, #root {
 .tag-row {
   display: flex;
   align-items: center;
+  min-width: var(--row-item-min, auto);
   flex-shrink: 0;
   gap: 8px;
   padding: 6px 8px;
@@ -313,6 +482,7 @@ html, body, #root {
   gap: 4px;
   flex: 1;
   min-height: 28px;
+  min-width: var(--row-item-min, auto);
 }
 
 .drag-handle {
@@ -428,17 +598,65 @@ html, body, #root {
     height: auto;
   }
 
+  .shell {
+    height: auto;
+    min-height: 100%;
+  }
+
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: none;
     grid-auto-rows: minmax(200px, auto);
-    height: auto;
-    min-height: 100%;
   }
 
   .picker,
   .tag-list {
     grid-column: 1;
     grid-row: auto;
+  }
+}
+
+/* Touch input: give the action buttons a finger-sized target. Keyed on pointer type,
+   not width, so a tablet gets them and a narrow desktop window does not.
+   Must stay after .select-btn — a media query adds no specificity. */
+@media (hover: none) and (pointer: coarse) {
+  .select-btn {
+    min-height: 44px;
+    padding: 10px;
+    border-radius: 8px; /* double the 4px used on desktop */
+  }
+
+  .picker-actions,
+  .panel-header-actions {
+    gap: 8px;
+  }
+
+  .picker-hint-pointer {
+    display: none;
+  }
+
+  .picker-hint-touch {
+    display: block;
+  }
+
+  .hamburger {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+  }
+
+  .switch {
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+  }
+
+  .switch-knob {
+    width: 24px;
+    height: 24px;
+  }
+
+  .switch.on .switch-knob {
+    transform: translateX(22px);
   }
 }
